@@ -5,7 +5,8 @@ const postSchema = new mongoose.Schema({
   description: { type: String, required: true },
   images: [{ type: String }], 
   hyperlink: { type: String },
-  pdf: { type: String }, 
+  pdf: { type: String },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Post", postSchema);
