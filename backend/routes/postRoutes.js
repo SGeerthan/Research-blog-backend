@@ -11,10 +11,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-router.post("/", protect, upload.fields([{ name: "images" }, { name: "pdf", maxCount: 1 }]), createPost);
+router.post("/", protect, upload.fields([{ name: "images", maxCount: 20 }, { name: "pdf", maxCount: 1 }]), createPost);
 router.get("/", getPosts); // Public - anyone can view all posts
 router.get("/my-posts", protect, getUserPosts); // Protected - user can only see their own posts
-router.put("/:id", protect, updatePost); // Protected - only post owner can update
+router.put("/:id", protect, upload.fields([{ name: "images", maxCount: 20 }, { name: "pdf", maxCount: 1 }]), updatePost); // Protected - only post owner can update
 router.delete("/:id", protect, deletePost); // Protected - only post owner can delete
 
 module.exports = router;

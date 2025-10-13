@@ -2,7 +2,7 @@ const Post = require("../models/Post");
 
 // Create Post
 exports.createPost = async (req, res) => {
-  const { author, description, hyperlink } = req.body;
+  const { author, description, hyperlink, topic } = req.body;
   const images = req.files["images"]?.map(f => f.path) || [];
   const pdf = req.files["pdf"] ? req.files["pdf"][0].path : null;
 
@@ -10,6 +10,7 @@ exports.createPost = async (req, res) => {
     author, 
     description, 
     hyperlink, 
+    topic,
     images, 
     pdf, 
     user: req.user.id 
@@ -47,7 +48,23 @@ exports.updatePost = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to update this post" });
     }
 
-    const updated = await Post.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    // Prepare updates from body
+    const { author, description, hyperlink, topic } = req.body;
+    const updateData = {};
+    if (author !== undefined) updateData.author = author;
+    if (description !== undefined) updateData.description = description;
+    if (hyperlink !== undefined) updateData.hyperlink = hyperlink;
+    if (topic !== undefined) updateData.topic = topic;
+
+    // Handle file updates if provided
+    if (req.files && req.files["images"]) {
+      updateData.images = req.files["images"].map(f => f.path);
+    }
+    if (req.files && req.files["pdf"]) {
+      updateData.pdf = req.files["pdf"][0].path;
+    }
+
+    const updated = await Post.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json(updated);
   } catch (error) {
     res.status(500).json({ message: "Error updating post", error: error.message });
