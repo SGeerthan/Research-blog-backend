@@ -2,6 +2,7 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 const sendEmail = require("../utils/sendEmail");
 
 // @desc Register Admin
@@ -28,6 +29,12 @@ exports.register = async (req, res) => {
     if (!process.env.SERVER_URL) {
       console.error("❌ SERVER_URL environment variable is missing");
       return res.status(500).json({ message: "Server configuration error" });
+    }
+
+    // Check database connection
+    if (!mongoose.connection.readyState) {
+      console.error("❌ Database not connected");
+      return res.status(500).json({ message: "Database connection error" });
     }
 
     const existingUser = await User.findOne({ email });

@@ -8,8 +8,13 @@ const cors = require("cors");
 // Load environment variables
 dotenv.config();
 
-// Connect to the database
-connectDB();
+// Connect to the database (with error handling for Vercel)
+try {
+  connectDB();
+} catch (error) {
+  console.error("❌ Database connection failed during startup:", error.message);
+  // Don't exit the process in Vercel, let it continue
+}
 
 const app = express();
 
@@ -33,15 +38,19 @@ app.get("/", (req, res) => {
 
 // Debug endpoint for environment variables (remove in production)
 app.get("/debug/env", (req, res) => {
-  res.json({
-    JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Missing',
-    MONGO_URI: process.env.MONGO_URI ? 'Set' : 'Missing', 
-    SERVER_URL: process.env.SERVER_URL ? 'Set' : 'Missing',
-    CLIENT_URL: process.env.CLIENT_URL ? 'Set' : 'Missing',
-    EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Missing',
-    EMAIL_PASS: process.env.EMAIL_PASS ? 'Set' : 'Missing',
-    NODE_ENV: process.env.NODE_ENV || 'development'
-  });
+  try {
+    res.json({
+      JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Missing',
+      MONGO_URI: process.env.MONGO_URI ? 'Set' : 'Missing', 
+      SERVER_URL: process.env.SERVER_URL ? 'Set' : 'Missing',
+      CLIENT_URL: process.env.CLIENT_URL ? 'Set' : 'Missing',
+      EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Missing',
+      EMAIL_PASS: process.env.EMAIL_PASS ? 'Set' : 'Missing',
+      NODE_ENV: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 
