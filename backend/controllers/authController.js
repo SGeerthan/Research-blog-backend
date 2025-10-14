@@ -6,61 +6,89 @@ const sendEmail = require("../utils/sendEmail");
 
 // @desc Register Admin
 exports.register = async (req, res) => {
-  const { username, email, password, confirmPassword } = req.body;
+  try {
+    const { username, email, password, confirmPassword } = req.body;
 
-  if (password !== confirmPassword) {
-    return res.status(400).json({ message: "Passwords do not match" });
+    // Validate required fields
+    if (!username || !email || !password || !confirmPassword) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
+    }
+
+    // Check if JWT_SECRET is configured
+    if (!process.env.JWT_SECRET) {
+      console.error("❌ JWT_SECRET environment variable is missing");
+      return res.status(500).json({ message: "Server configuration error" });
+    }
+
+    // Check if SERVER_URL is configured
+    if (!process.env.SERVER_URL) {
+      console.error("❌ SERVER_URL environment variable is missing");
+      return res.status(500).json({ message: "Server configuration error" });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser)
+      return res.status(400).json({ message: "Email already registered" });
+
+    const hashed = await bcrypt.hash(password, 10);
+    const user = await User.create({ username, email, password: hashed });
+
+    // Create verification token
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    const verifyUrl = `${process.env.SERVER_URL}/api/auth/verify/${token}`;
+    console.log("🔗 Verification URL:", verifyUrl);
+
+    try {
+      await sendEmail(
+        email,
+        "Verify your account",
+        `
+          <div style="font-family: Arial, sans-serif; color: #333;">
+            <h3 style="color: #444;">Email Verification</h3>
+            <p>Please click the button below to verify your email address:</p>
+            <a href="${verifyUrl}" target="_blank"
+              style="
+                display: inline-block;
+                padding: 10px 20px;
+                margin-top: 10px;
+                background-color: #4CAF50;
+                color: white;
+                text-decoration: none;
+                font-weight: bold;
+                border-radius: 5px;
+              ">
+              Verify Email
+            </a>
+            <p style="margin-top:20px; font-size: 12px; color: #777;">
+              If the button above doesn't work, copy and paste this link into your browser:
+            </p>
+            <p style="word-break: break-all; color: #555;">
+              ${verifyUrl}
+            </p>
+          </div>
+        `
+      );
+      
+      res.json({ message: "Registration successful, check email to verify" });
+    } catch (emailError) {
+      console.error("❌ Email sending failed:", emailError.message);
+      // Still return success but mention email issue
+      res.json({ 
+        message: "Registration successful, but email verification failed. Please contact support.",
+        verificationUrl: verifyUrl // Include the URL for manual verification
+      });
+    }
+  } catch (error) {
+    console.error("❌ Registration error:", error.message);
+    res.status(500).json({ message: "Registration failed", error: error.message });
   }
-
-  const existingUser = await User.findOne({ email });
-  if (existingUser)
-    return res.status(400).json({ message: "Email already registered" });
-
-  const hashed = await bcrypt.hash(password, 10);
-  const user = await User.create({ username, email, password: hashed });
-
-  // Create verification token
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-    expiresIn: "1d",
-  });
-
-
-  const verifyUrl = `${process.env.SERVER_URL}/api/auth/verify/${token}`;
-
-  console.log(verifyUrl); // For testing purposes
-
-await sendEmail(
-  email,
-  "Verify your account",
-  `
-    <div style="font-family: Arial, sans-serif; color: #333;">
-      <h3 style="color: #444;">Email Verification</h3>
-      <p>Please click the button below to verify your email address:</p>
-      <a href="${verifyUrl}" target="_blank"
-        style="
-          display: inline-block;
-          padding: 10px 20px;
-          margin-top: 10px;
-          background-color: #4CAF50;
-          color: white;
-          text-decoration: none;
-          font-weight: bold;
-          border-radius: 5px;
-        ">
-        Verify Email
-      </a>
-      <p style="margin-top:20px; font-size: 12px; color: #777;">
-        If the button above doesn't work, copy and paste this link into your browser:
-      </p>
-      <p style="word-break: break-all; color: #555;">
-        ${verifyUrl}
-      </p>
-    </div>
-  `
-);
-
-
-  res.json({ message: "Registration successful, check email to verify" });
 };
 
 // @desc Verify Email
