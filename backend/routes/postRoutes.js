@@ -5,11 +5,14 @@ const protect = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname)
+// For Vercel deployment, use memory storage instead of disk storage
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  }
 });
-const upload = multer({ storage });
 
 router.post("/", protect, upload.fields([{ name: "images", maxCount: 20 }, { name: "pdf", maxCount: 1 }]), createPost);
 router.get("/", getPosts); // Public - anyone can view all posts

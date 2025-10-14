@@ -1,8 +1,8 @@
 const express = require("express");
 const dotenv = require("dotenv");
-const connectDB = require("../config/db"); // path updated because file is now inside /api
-const authRoutes = require("../routes/authRoutes");
-const postRoutes = require("../routes/postRoutes");
+const connectDB = require("./config/db");
+const authRoutes = require("./routes/authRoutes");
+const postRoutes = require("./routes/postRoutes");
 const cors = require("cors");
 
 // Load environment variables
@@ -16,7 +16,8 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static("uploads"));
+// Note: Static file serving removed for Vercel deployment
+// Files are now handled via cloud storage or base64 encoding
 
 // Routes
 app.use("/api/auth", authRoutes);

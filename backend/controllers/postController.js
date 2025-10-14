@@ -2,20 +2,40 @@ const Post = require("../models/Post");
 
 // Create Post
 exports.createPost = async (req, res) => {
-  const { author, description, hyperlink, topic } = req.body;
-  const images = req.files["images"]?.map(f => f.path) || [];
-  const pdf = req.files["pdf"] ? req.files["pdf"][0].path : null;
+  try {
+    const { author, description, hyperlink, topic } = req.body;
+    
+    // For Vercel deployment, files are in memory storage
+    // In production, you should upload to cloud storage (AWS S3, Cloudinary, etc.)
+    const images = req.files["images"]?.map(f => ({
+      filename: f.originalname,
+      mimetype: f.mimetype,
+      size: f.size,
+      // In production, upload to cloud storage and store the URL
+      url: `data:${f.mimetype};base64,${f.buffer.toString('base64')}` // Temporary base64 for demo
+    })) || [];
+    
+    const pdf = req.files["pdf"] ? {
+      filename: req.files["pdf"][0].originalname,
+      mimetype: req.files["pdf"][0].mimetype,
+      size: req.files["pdf"][0].size,
+      // In production, upload to cloud storage and store the URL
+      url: `data:${req.files["pdf"][0].mimetype};base64,${req.files["pdf"][0].buffer.toString('base64')}` // Temporary base64 for demo
+    } : null;
 
-  const post = await Post.create({ 
-    author, 
-    description, 
-    hyperlink, 
-    topic,
-    images, 
-    pdf, 
-    user: req.user.id 
-  });
-  res.json(post);
+    const post = await Post.create({ 
+      author, 
+      description, 
+      hyperlink, 
+      topic,
+      images, 
+      pdf, 
+      user: req.user.id 
+    });
+    res.json(post);
+  } catch (error) {
+    res.status(500).json({ message: "Error creating post", error: error.message });
+  }
 };
 
 // Get All Posts (public)
@@ -58,10 +78,20 @@ exports.updatePost = async (req, res) => {
 
     // Handle file updates if provided
     if (req.files && req.files["images"]) {
-      updateData.images = req.files["images"].map(f => f.path);
+      updateData.images = req.files["images"].map(f => ({
+        filename: f.originalname,
+        mimetype: f.mimetype,
+        size: f.size,
+        url: `data:${f.mimetype};base64,${f.buffer.toString('base64')}`
+      }));
     }
     if (req.files && req.files["pdf"]) {
-      updateData.pdf = req.files["pdf"][0].path;
+      updateData.pdf = {
+        filename: req.files["pdf"][0].originalname,
+        mimetype: req.files["pdf"][0].mimetype,
+        size: req.files["pdf"][0].size,
+        url: `data:${req.files["pdf"][0].mimetype};base64,${req.files["pdf"][0].buffer.toString('base64')}`
+      };
     }
 
     const updated = await Post.findByIdAndUpdate(req.params.id, updateData, { new: true });
