@@ -10,7 +10,9 @@ const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    // Keep individual file limit conservative to avoid timeouts on serverless
+    fileSize: 8 * 1024 * 1024, // 8MB per file
+    files: 21 // up to 20 images + 1 pdf
   }
 });
 
