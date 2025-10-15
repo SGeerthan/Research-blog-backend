@@ -1,27 +1,42 @@
 const Post = require("../models/Post");
+const { uploadBuffer, deleteByPublicId } = require("../utils/cloudinary");
 
 // Create Post
 exports.createPost = async (req, res) => {
   try {
     const { author, description, hyperlink, topic } = req.body;
     
-    // For Vercel deployment, files are in memory storage
-    // In production, you should upload to cloud storage (AWS S3, Cloudinary, etc.)
-    const images = req.files["images"]?.map(f => ({
-      filename: f.originalname,
-      mimetype: f.mimetype,
-      size: f.size,
-      // In production, upload to cloud storage and store the URL
-      url: `data:${f.mimetype};base64,${f.buffer.toString('base64')}` // Temporary base64 for demo
-    })) || [];
-    
-    const pdf = req.files["pdf"] ? {
-      filename: req.files["pdf"][0].originalname,
-      mimetype: req.files["pdf"][0].mimetype,
-      size: req.files["pdf"][0].size,
-      // In production, upload to cloud storage and store the URL
-      url: `data:${req.files["pdf"][0].mimetype};base64,${req.files["pdf"][0].buffer.toString('base64')}` // Temporary base64 for demo
-    } : null;
+    // Upload images to Cloudinary
+    let images = [];
+    if (req.files && req.files["images"]) {
+      const uploadedImages = await Promise.all(
+        req.files["images"].map(async (file) => {
+          const result = await uploadBuffer(file.buffer, "research-blog/images", "image");
+          return {
+            url: result.secure_url,
+            publicId: result.public_id,
+            filename: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size
+          };
+        })
+      );
+      images = uploadedImages;
+    }
+
+    // Upload PDF to Cloudinary as raw resource
+    let pdf = null;
+    if (req.files && req.files["pdf"]) {
+      const file = req.files["pdf"][0];
+      const result = await uploadBuffer(file.buffer, "research-blog/pdfs", "raw");
+      pdf = {
+        url: result.secure_url,
+        publicId: result.public_id,
+        filename: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size
+      };
+    }
 
     const post = await Post.create({ 
       author, 
@@ -76,21 +91,38 @@ exports.updatePost = async (req, res) => {
     if (hyperlink !== undefined) updateData.hyperlink = hyperlink;
     if (topic !== undefined) updateData.topic = topic;
 
-    // Handle file updates if provided
+    // Handle file updates if provided (replace existing)
     if (req.files && req.files["images"]) {
-      updateData.images = req.files["images"].map(f => ({
-        filename: f.originalname,
-        mimetype: f.mimetype,
-        size: f.size,
-        url: `data:${f.mimetype};base64,${f.buffer.toString('base64')}`
-      }));
+      // Optionally delete previous images from Cloudinary
+      if (post.images && post.images.length) {
+        await Promise.all(post.images.map(img => img.publicId ? deleteByPublicId(img.publicId, "image") : null));
+      }
+      const uploadedImages = await Promise.all(
+        req.files["images"].map(async (file) => {
+          const result = await uploadBuffer(file.buffer, "research-blog/images", "image");
+          return {
+            url: result.secure_url,
+            publicId: result.public_id,
+            filename: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size
+          };
+        })
+      );
+      updateData.images = uploadedImages;
     }
     if (req.files && req.files["pdf"]) {
+      if (post.pdf && post.pdf.publicId) {
+        await deleteByPublicId(post.pdf.publicId, "raw");
+      }
+      const file = req.files["pdf"][0];
+      const result = await uploadBuffer(file.buffer, "research-blog/pdfs", "raw");
       updateData.pdf = {
-        filename: req.files["pdf"][0].originalname,
-        mimetype: req.files["pdf"][0].mimetype,
-        size: req.files["pdf"][0].size,
-        url: `data:${req.files["pdf"][0].mimetype};base64,${req.files["pdf"][0].buffer.toString('base64')}`
+        url: result.secure_url,
+        publicId: result.public_id,
+        filename: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size
       };
     }
 
@@ -115,6 +147,13 @@ exports.deletePost = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to delete this post" });
     }
 
+    // Clean up Cloudinary assets
+    if (post.images && post.images.length) {
+      await Promise.all(post.images.map(img => img.publicId ? deleteByPublicId(img.publicId, "image") : null));
+    }
+    if (post.pdf && post.pdf.publicId) {
+      await deleteByPublicId(post.pdf.publicId, "raw");
+    }
     await Post.findByIdAndDelete(req.params.id);
     res.json({ message: "Post deleted" });
   } catch (error) {

@@ -42,8 +42,8 @@ app.get("/debug/env", (req, res) => {
     res.json({
       JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Missing',
       MONGO_URI: process.env.MONGO_URI ? 'Set' : 'Missing', 
-      SERVER_URL: process.env.SERVER_URL ? 'Set' : 'Missing',
-      CLIENT_URL: process.env.CLIENT_URL ? 'Set' : 'Missing',
+      SERVER_URL: process.env.SERVER_URL || 'Missing',
+      CLIENT_URL: process.env.CLIENT_URL || 'Missing',
       EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Missing',
       EMAIL_PASS: process.env.EMAIL_PASS ? 'Set' : 'Missing',
       NODE_ENV: process.env.NODE_ENV || 'development'
@@ -51,6 +51,15 @@ app.get("/debug/env", (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Specific endpoint to check SERVER_URL
+app.get("/debug/server-url", (req, res) => {
+  res.json({
+    SERVER_URL: process.env.SERVER_URL,
+    expected: "https://research-blog-backend-4b6h.vercel.app",
+    isCorrect: process.env.SERVER_URL === "https://research-blog-backend-4b6h.vercel.app"
+  });
 });
 
 

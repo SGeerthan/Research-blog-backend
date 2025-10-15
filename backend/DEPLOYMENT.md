@@ -80,3 +80,22 @@ Set these in your Vercel dashboard:
 - Verify all environment variables are set
 - Ensure MongoDB connection is working
 - Check email service configuration
+
+## Cloudinary Setup
+
+Configure Cloudinary to store images and PDFs instead of local storage:
+
+1. Create a Cloudinary account and a Cloud name.
+2. Create an API Key and API Secret.
+3. Set the following environment variables (e.g., in Vercel project settings or `.env` for local):
+   - `CLOUDINARY_CLOUD_NAME`
+   - `CLOUDINARY_API_KEY`
+   - `CLOUDINARY_API_SECRET`
+4. No local static file hosting is required. Uploads are processed in memory and sent directly to Cloudinary.
+5. Ensure request body limits are adequate for your use case. Current per-file limit is 10MB via multer.
+
+Data model:
+- `images` is an array of objects: `{ url, publicId, filename, mimetype, size }`
+- `pdf` is an object: `{ url, publicId, filename, mimetype, size }`
+
+On post update/delete, associated Cloudinary assets are replaced or removed accordingly.
